@@ -42,31 +42,24 @@ streamFold fn !acc instrm = acc `seq` do
     Fork p (Cons h t) -> fork p >> streamFold fn (fn acc h) t
     _                 -> return acc
 
-streamMap :: NFData b => ForkDistance
-                      -> ChunkSize
-                      -> (a -> b)
+streamMap :: NFData b => (a -> b)
                       -> Stream a
                       -> Par (Stream b)
-streamMap f c fn instrm = do
+streamMap fn instrm = do
   outstrm <- new
-  fork $ loop f c instrm outstrm
+  fork $ loop instrm outstrm
   return outstrm
   where
-    loop 0 c instrm outstrm = do
-      l <- get instrm
-      let op = loop c c instrm outstrm
-      case l of
-        x -> undefined --put instrm (Fork op x)
-    loop f c instrm outstrm = do
+    loop instrm outstrm = do
       ilist <- get instrm
       case ilist of
         Nil -> put outstrm Nil
         Cons h t -> do
           newtl <- new
           put outstrm (Cons (fn h) newtl)
-          loop (f-1) c t newtl
+          loop t newtl
         Fork op (Cons h t) -> do
           fork op
           newtl <- new
           put outstrm (Cons (fn h) newtl)
-          loop (f-1) c t newtl
+          loop t newtl
